@@ -1,0 +1,394 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+	<head>
+		
+		<title>3 Mens Morris</title>
+
+		<script language="JavaScript">
+			var i, j, N_Sel, I_Sel, J_Sel, IsOver, Size = 3, Start, Start0;
+			var MoveCount, MaxMoveCount, MoveVal, Blink, MaxMove = 100;
+			Level = new Array(2);
+			Level[0] = 0;
+			Level[1] = 2;
+			Start0 = 0;
+			Piece = new Array(2);
+			for (i = 0; i < 2; i++) Piece[i] = new Array(Size); 
+			for (i = 0; i < 2; i++) {
+				for (j = 0; j < Size; j++) {
+			  		Piece[i][j] = new Array(2); 	// 1-p1,c0
+			  	}
+			}
+			Fld = new Array(Size);
+			for (i = 0; i < Size; i++) Fld[i] = new Array(Size); 
+			
+			Pic = new Array(5);
+			for (i = 0; i < 5; i++) {
+				Pic[i] = new Image(); 
+			  	Pic[i].src = "images/3mm_" + i + ".png";
+			} 
+
+			function SetStart(ss) {	// determine first player
+				Start0 = ss;
+				Init(); 
+			}
+			
+			function SetLevel(nn, mm) {	// determine level
+				Level[nn] = mm;
+				Init();
+			}
+			
+			function Init() {
+				var ii, jj;
+			  	Start = Start0;	// set first player
+			  	for (ii = 0; ii < 2; ii++) {	// pieces position
+			  		for (jj = 0; jj < Size; jj++) {	
+			    		Piece[ii][jj][0] = -1; 
+			      		Piece[ii][jj][1] = -1;
+			    	}
+			  	}
+			  	for (ii = 0; ii < Size; ii++) {
+			  		for (jj = 0; jj < Size; jj++)
+			      		Fld[ii][jj] = -1; 
+			  	}
+			  	N_Sel = -1;
+			  	IsOver = 0;
+			  	MoveCount = 0;
+			  	MaxMoveCount = 0;
+			  	RefreshScreen();	// update images
+			}
+			
+			function Timer() {
+				if (IsOver) return;
+				var mm = (MoveCount + Start) % 2;	// determine turn 0-human, 1-computer
+				if (Level[mm] == 0) return;			// return if human's turn
+				if (MoveCount < 2 * Size) {			// if placement phase
+					if (N_Sel < 0) {
+						GetBestMove(mm, Level[mm]);
+						return;
+					}
+				}
+				if (N_Sel < 0) {					// if sliding phase
+					GetBestMove(mm, Level[mm]);
+					var ii = Piece[mm][N_Sel][0];
+					var jj = Piece[mm][N_Sel][1];
+					Fld[ii][jj] += 2;
+					RefreshPic(ii, jj);
+				} 
+				else MakeMove(mm, N_Sel, I_Sel, J_Sel);	// board I,J position place comp Nth piece
+			}
+			
+			
+			function MakeMove(mm, nn, ii, jj) {
+				if (MoveCount >= 2 * Size) {
+					Fld[Piece[mm][nn][0]][Piece[mm][nn][1]] = -1;
+					RefreshPic(Piece[mm][nn][0], Piece[mm][nn][1]);
+				}
+				Piece[mm][nn][0] += ii;
+				Piece[mm][nn][1] += jj;
+				Fld[Piece[mm][nn][0]][Piece[mm][nn][1]] = mm;
+				RefreshPic(Piece[mm][nn][0], Piece[mm][nn][1]);
+
+				document.getElementById("MOVECNT").innerHTML = eval(MoveCount+1);
+
+				IsOver = OverTest(mm);
+				MoveCount++;
+				if (MaxMoveCount < MoveCount) MaxMoveCount = MoveCount;
+				N_Sel = -1;
+				if (IsOver > 0) {
+					if (mm == 0) alert("Player has won!");
+					else alert("Computer has won!");
+					return;
+				}
+				if (MoveCount == MaxMove) {
+					IsOver = 1;
+					alert("It's a draw .");
+				}
+			}
+
+			function OverTest(mm) {
+				var ii, jj, nn, ss;
+				for (ii = 0; ii < Size; ii++) {
+					ss = 0;
+					for (jj = 0; jj < Size; jj++) {
+						if (Fld[ii][jj] == mm) ss++;
+					}
+					if (ss == Size) return(1);
+				}
+				for (jj = 0; jj < Size; jj++) {
+					ss = 0;
+					for (ii = 0; ii < Size; ii++) {
+						if (Fld[ii][jj] == mm) ss++;
+					}
+					if (ss == Size) return(1);
+				}
+				// for (nn = 0; nn < Size; nn++) {
+				// 	ii = Piece[1 - mm][nn][0];
+				// 	if (ii < 0) return(0);
+				// 	jj = Piece[1 - mm][nn][1];
+				// 	if (GetFld(ii - 1, jj) == -1) return(0);
+				// 	if (GetFld(ii + 1, jj) == -1) return(0);
+				// 	if (GetFld(ii, jj - 1) == -1) return(0);
+				// 	if (GetFld(ii, jj + 1) == -1) return(0);
+				// }
+				return(0);
+			}
+
+			function GetBestMove(mm, ll) {
+				var ii, jj, dd_i, dd_j, nn, vv, ii_best, jj_best, nn_best, vv_best = -10000, mm1 = 1 - mm, ll1 = ll - 1;
+				for (nn = 0; nn < Size; nn++) {
+					ii = Piece[mm][nn][0];
+					jj = Piece[mm][nn][1];
+					if (ii < 0) {
+						for (dd_i = 0; dd_i < Size; dd_i++) {
+							for (dd_j = 0; dd_j < Size; dd_j++) {
+								if (GetFld(dd_i, dd_j) == -1) {
+									Piece[mm][nn][0] = dd_i;
+									Piece[mm][nn][1] = dd_j;
+									Fld[dd_i][dd_j] = mm;
+									vv = OverTest(mm);
+									if (vv > 0) {
+										Piece[mm][nn][0] = -1;
+										Piece[mm][nn][1] = -1;
+										Fld[dd_i][dd_j] = -1;
+										N_Sel = nn;
+										I_Sel = dd_i + 1;
+										J_Sel = dd_j + 1;
+										return(1000 + ll * 200);
+									}
+									if (ll > 0) vv = -GetBestMove(mm1, ll1); 
+									vv += Math.floor(Math.random() *10);
+									if ((ll > 1) && (dd_i == 1) && (dd_j == 1)) vv += 10;
+									if (vv_best < vv) {
+										vv_best = vv;
+										nn_best = nn;
+										ii_best = dd_i;
+										jj_best = dd_j;
+									}
+									Piece[mm][nn][0] = -1;
+									Piece[mm][nn][1] = -1;
+									Fld[dd_i][dd_j] = -1;
+								}
+							}
+						}
+						N_Sel = nn_best;
+						I_Sel = ii_best + 1;
+						J_Sel = jj_best + 1;
+						return(vv_best);
+					}
+				}
+				for (nn = 0; nn < Size; nn++) {
+					ii = Piece[mm][nn][0];
+					jj = Piece[mm][nn][1];
+					for (dd_i = -1; dd_i <= 1; dd_i++) {
+						for (dd_j = -1; dd_j <= 1; dd_j++) {
+							if ((dd_i + dd_j + 2) % 2 == 1) {
+								if (GetFld(ii + dd_i, jj + dd_j) == -1) {
+									Fld[ii][jj] = -1;
+									Piece[mm][nn][0] += dd_i;
+									Piece[mm][nn][1] += dd_j;
+									Fld[ii + dd_i][jj + dd_j] = mm;
+									vv = OverTest(mm);
+									if (vv > 0) {
+										Fld[ii][jj] = mm;
+										Piece[mm][nn][0] -= dd_i;
+										Piece[mm][nn][1] -= dd_j;
+										Fld[ii + dd_i][jj + dd_j] = -1;
+										N_Sel = nn;
+										I_Sel = dd_i;
+										J_Sel = dd_j;
+										return(1000 + ll * 200);
+									}
+									if (ll > 0) vv = -GetBestMove(mm1, ll1); 
+										vv += Math.floor(Math.random() * 10);
+									if (vv_best < vv) {
+										vv_best = vv;
+										nn_best = nn;
+										ii_best = dd_i;
+										jj_best = dd_j;
+									}
+									Fld[ii][jj] = mm;
+									Piece[mm][nn][0] -= dd_i;
+									Piece[mm][nn][1] -= dd_j;
+									Fld[ii + dd_i][jj + dd_j] = -1;
+								}
+							}
+						}
+					}
+				}
+				N_Sel = nn_best;
+				I_Sel = ii_best;
+				J_Sel = jj_best;
+				return(vv_best);
+			}
+				
+			function GetFld(nn, mm) {
+				if (nn < 0) return(-2);
+				if (nn >= Size) return(-2);
+				if (mm < 0) return(-2);
+				if (mm >= Size) return(-2);
+				return(Fld[nn][mm]);
+			}
+
+			function Clicked(ii, jj) {
+				var nn, mmove = (MoveCount + Start) % 2;
+				if (IsOver > 0) return;
+				if (Level[mmove] > 0) return;
+				if ((N_Sel < 0) && (MoveCount >= 2 * Size)) {	// sliding phase select piece
+					for (nn = 0; nn < Size; nn++) {
+						if ((Piece[mmove][nn][0] == ii) && (Piece[mmove][nn][1] == jj)) {
+							N_Sel = nn;
+							Fld[ii][jj] += 2;
+							RefreshPic(ii, jj);
+							return;
+						}
+					}
+				}
+				else {
+					if (MoveCount < 2 * Size) {		// placement phase 
+						if (Fld[ii][jj] >= 0) return;
+						N_Sel = Math.floor(MoveCount / 2);
+						MakeMove(mmove, N_Sel, ii - Piece[mmove][N_Sel][0], jj - Piece[mmove][N_Sel][1]);
+						return;
+					}
+					if ((Piece[mmove][N_Sel][0] == ii) && (Piece[mmove][N_Sel][1] == jj)) {	// sliding phase don't allow to slide to occupied position
+						N_Sel = -1;
+						Fld[ii][jj] -= 2;
+						RefreshPic(ii, jj);
+						return;
+					}
+					if (Fld[ii][jj] >= 0) return;
+					if (Piece[mmove][N_Sel][0] == ii) {		// sliding phase vertical adjacent movement
+						if (Math.abs(jj - Piece[mmove][N_Sel][1]) == 1) {
+							MakeMove(mmove, N_Sel, 0, jj - Piece[mmove][N_Sel][1]);
+							return;
+						}
+						return;
+					}
+					if (Piece[mmove][N_Sel][1] == jj) {		// sliding phase horizontal adjacent movement
+						if (Math.abs(ii - Piece[mmove][N_Sel][0]) == 1) {
+							MakeMove(mmove, N_Sel, ii - Piece[mmove][N_Sel][0], 0);
+							return;
+						}
+						return;
+					}
+				}
+			} 
+
+			function RefreshPic(ii, jj) {
+				var pnam;
+				pnam = "pic" + ii + jj
+				window.document.images[pnam].src = Pic[Fld[ii][jj] + 1].src;
+			}
+			
+			function RefreshScreen() {
+				var ii, jj, pnam;
+				for (ii = 0; ii < Size; ii++) {
+					for (jj = 0; jj < Size; jj++) {
+						pnam = "pic" + ii + jj
+						window.document.images[pnam].src = Pic[0].src;
+					}
+				} 
+				document.getElementById("MOVECNT").innerHTML =  MoveCount;
+			}
+		</script>
+		<style>
+			#P00 { margin-left: 35%; margin-top:80px; position: absolute; z-index: 100; top: 43px; left: 37px; width: 45px; height: 41px; visibility: visible; display: block }
+			#P01 { margin-left: 35%; margin-top:80px; position: absolute; z-index: 100; top: 43px; left: 135px; width: 45px; height: 41px; visibility: visible; display: block }
+			#P02 { margin-left: 35%; margin-top:80px; position: absolute; z-index: 100; top: 43px; left: 233px; width: 45px; height: 41px; visibility: visible; display: block }
+			#P10 { margin-left: 35%; margin-top:80px; position: absolute; z-index: 100; top: 132px; left: 37px; width: 45px; height: 41px; visibility: visible; display: block }
+			#P11 { margin-left: 35%; margin-top:80px; position: absolute; z-index: 100; top: 132px; left: 135px; width: 45px; height: 41px; visibility: visible; display: block }
+			#P12 {margin-left: 35%; margin-top:80px;  position: absolute; z-index: 100; top: 132px; left: 233px; width: 45px; height: 41px; visibility: visible; display: block }
+			#P20 { margin-left: 35%; margin-top:80px; position: absolute; z-index: 100; top: 222px; left: 37px; width: 45px; height: 41px; visibility: visible; display: block }
+			#P21 { margin-left: 35%; margin-top:80px; position: absolute; z-index: 100; top: 222px; left: 135px; width: 45px; height: 41px; visibility: visible; display: block }
+			#P22 { margin-left: 35%; margin-top:80px; position: absolute; z-index: 100; top: 222px; left: 233px; width: 45px; height: 41px; visibility: visible; display: block }
+		</style>
+
+<body leftmargin="0" marginheight="0" marginwidth="0" topmargin="0" style="background-color:#cccccc;">
+<div style="margin-left:35%; margin-top:25px;">
+
+	<div id="P00">
+		<a href="javascript:Clicked(0,0)"><img id="pic00" name="pic00" src="" border="0"></a>
+	</div>
+	<div id="P01">
+		<a href="javascript:Clicked(0,1)"><img id="pic01" name="pic01" src="" border="0"></a>
+	</div>
+	<div id="P02">
+		<a href="javascript:Clicked(0,2)"><img id="pic02" name="pic02" src="" border="0"></a>
+	</div>
+	<div id="P10">
+		<a href="javascript:Clicked(1,0)"><img id="pic10" name="pic10" src="" border="0"></a>
+	</div>
+	<div id="P11">
+		<a href="javascript:Clicked(1,1)"><img id="pic11" name="pic11" src="" border="0"></a>
+	</div>
+	<div id="P12">
+		<a href="javascript:Clicked(1,2)"><img id="pic12" name="pic12" src="" border="0"></a>
+	</div>
+	<div id="P20">
+		<a href="javascript:Clicked(2,0)"><img id="pic20" name="pic20" src="" border="0"></a>
+	</div>
+	<div id="P21">
+		<a href="javascript:Clicked(2,1)"><img id="pic21" name="pic21" src="" border="0"></a>
+	</div>
+	<div id="P22">
+		<a href="javascript:Clicked(2,2)"><img id="pic22" name="pic22" src="" border="0"></a>
+	</div>
+
+
+		<table width="320" border="0" cellspacing="0" cellpadding="0">
+			<tbody><tr height="80">
+				<td><img src="images/3mm_title.png" alt="" height="26" width="320" border="0"></td>
+			</tr>
+			<tr>
+				<td align="center">
+					<img src="images/3mmback.jpg" border="0">
+				</td>
+			</tr>
+			<tr>
+				<td align="center">
+					<table width="320" border="0" cellspacing="0" cellpadding="0">
+						<tbody><tr height="42">
+							<td colspan="2" align="center" height="42">
+								<table width="240" border="0" cellspacing="0" cellpadding="0">
+									<tbody><tr height="60">
+										<td class="game" align="center">MOVE
+										<div id="MOVECNT">2</div>
+										
+										</td>
+									</tr>
+								</tbody></table>
+							</td>
+						</tr>
+						<tr height="60">
+							<td align="center" width="160" height="42"><a href="javascript:SetStart(0)"><img src="images/BTN_START_WHITE.jpg" alt="" height="32" width="120" border="0"></a></td>
+							<td align="center" height="42"><a href="javascript:SetStart(1)"><img src="images/BTN_START_BLACK.jpg" alt="" height="32" width="120" border="0"></a></td>
+						</tr>
+						<tr>
+							<td class="game" align="right" width="160" valign="top">Level&nbsp;&nbsp;</td>
+							<td><form><select name="Black" onchange="SetLevel(1, this.options[selectedIndex].value)" size="1">
+									<option value="1">level1
+									</option><option value="2" selected="">level2
+									</option><option value="3">level3
+									</option><option value="4">level4
+									</option><option value="5">level5
+									</option><option value="6">level6
+									</option><option value="7">level7
+									</option><option value="8">level8
+									</option><option value="10">level10
+								</option></select></form>
+							</td>
+						</tr>
+					</tbody></table>
+				</td>
+			</tr>
+		</tbody></table>
+
+		<script language="JavaScript">
+		  Init();
+		  setInterval("Timer()",400); //Call timer function at interval of 400 millisecond
+		</script>
+	</div>	
+
+	</body>
+</html>
